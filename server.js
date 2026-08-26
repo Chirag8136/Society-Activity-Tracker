@@ -1,4 +1,6 @@
 ﻿require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
@@ -18,7 +20,7 @@ connectDB();
 
 // ---------- Core middleware ----------
 app.use(cors({
-  origin: (origin, callback) => callback(null, true), // Allow all origins for effortless demo deployment
+  origin: (origin, callback) => callback(null, true),
   credentials: true,
 }));
 app.use(express.json());
@@ -29,7 +31,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ---------- Routes ----------
+// ---------- API Routes ----------
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/attendance', attendanceRoutes);
@@ -38,10 +40,20 @@ app.use('/api/members', memberRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/societies', societyRoutes);
 
-// ---------- 404 handler ----------
-app.use((req, res) => {
-  res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
-});
+// ---------- Serve Frontend (Production All-in-One Deployment) ----------
+const frontendDistPath = path.join(__dirname, 'frontend', 'dist');
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+} else {
+  // 404 handler for API-only dev mode
+  app.use('/api/*', (req, res) => {
+    res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });
+  });
+}
 
 // ---------- Global error handler ----------
 app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars

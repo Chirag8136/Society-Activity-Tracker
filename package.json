@@ -1,20 +1,22 @@
-{
-  "name": "society-activity-tracker-backend",
+﻿{
+  "name": "society-activity-tracker",
   "version": "1.0.0",
-  "description": "Backend foundations for the Society Activity Tracker (Node.js, Express, MongoDB/Mongoose)",
+  "description": "Full-stack Society Activity Tracker (Node.js, Express, React, MongoDB)",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "build": "cd frontend && npm install && npm run build",
     "seed": "node scripts/seed.js"
   },
   "keywords": [
     "express",
     "mongodb",
     "mongoose",
-    "society",
-    "attendance-tracker"
+    "react",
+    "vite",
+    "society-tracker"
   ],
   "author": "",
   "license": "MIT",
