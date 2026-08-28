@@ -42,7 +42,13 @@ export default function LoginRegister() {
       const { token: newToken, user, societies } = res.data;
       login(newToken, user, societies || []);
     } catch (err) {
-      setError(err.response?.data?.message || 'Something went wrong');
+      console.error('Authentication Error:', err);
+      const msg =
+        err.response?.data?.message ||
+        (err.response?.data?.errors ? JSON.stringify(err.response.data.errors) : '') ||
+        err.message ||
+        'Authentication failed. Please verify your connection.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -92,9 +98,9 @@ export default function LoginRegister() {
           </div>
 
           {error && (
-            <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-xl flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-              <span>{error}</span>
+            <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold rounded-xl flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-1" />
+              <span className="break-words">{error}</span>
             </div>
           )}
 

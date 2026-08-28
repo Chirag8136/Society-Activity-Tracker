@@ -1,32 +1,33 @@
-const mongoose = require('mongoose');
+﻿const mongoose = require('mongoose');
 const dns = require('dns');
 
-// Fix for Windows/ISP DNS servers failing on MongoDB Atlas SRV records (querySrv ECONNREFUSED)
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch (e) {
-  // fallback gracefully
+// Only apply custom DNS on Windows where ISP DNS drops SRV records (querySrv ECONNREFUSED)
+if (process.platform === 'win32') {
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1']);
+  } catch (e) {
+    // fallback gracefully
+  }
 }
 
 /**
  * Establishes a connection to MongoDB using the URI in process.env.MONGO_URI.
- * Exits the process on initial connection failure (fail-fast), and logs
- * (without crashing) on connection issues that occur later at runtime.
  */
 const connectDB = async () => {
   if (!process.env.MONGO_URI) {
-    console.error('❌ MONGO_URI is not defined in your environment variables (.env)');
-    process.exit(1);
+    console.error('❌ MONGO_URI is not defined in environment variables');
+    return null;
   }
 
   try {
     mongoose.set('strictQuery', true);
 
-    const conn = await mongoose.connect(process.env.MONGO_URI);
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 10000,
+    });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
 
-    // Runtime connection event listeners (do not exit the process for these)
     mongoose.connection.on('error', (err) => {
       console.error(`❌ MongoDB connection error: ${err.message}`);
     });
@@ -41,14 +42,18 @@ const connectDB = async () => {
 
     return conn;
   } catch (error) {
-    console.error(`❌ MongoDB initial connection failed: ${error.message}`);
-    process.exit(1);
+    console.error(`❌ MongoDB connection failed: ${error.message}`);
+    // In production, log instead of immediate hard crash to allow health check diagnostics
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
   }
 };
 
-// Graceful shutdown on app termination
 process.on('SIGINT', async () => {
-  await mongoose.connection.close();
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.connection.close();
+  }
   console.log('🛑 MongoDB connection closed due to app termination (SIGINT)');
   process.exit(0);
 });
