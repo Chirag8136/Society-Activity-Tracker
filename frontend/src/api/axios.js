@@ -1,17 +1,32 @@
 ﻿import axios from 'axios';
 
-// In production all-in-one deployment, default to relative '/api'
-// In local dev, default to 'http://localhost:5000/api'
-const baseURL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5000/api');
+// Determine the correct API base URL
+// On deployed environments (like Render), ALWAYS use relative '/api' on the same origin.
+// In local development on localhost:5173, use 'http://localhost:5000/api'.
+const getBaseURL = () => {
+  if (typeof window !== 'undefined') {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (!isLocal) {
+      // Deployed cloud environment (e.g. Render) -> use relative path
+      return '/api';
+    }
+  }
+  return import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+};
 
 const api = axios.create({
-  baseURL,
+  baseURL: getBaseURL(),
   headers: { 'Content-Type': 'application/json' },
 });
 
 // Always attach Authorization token and x-society-id to every outgoing request
 api.interceptors.request.use(
   (config) => {
+    // Ensure baseURL is dynamically evaluated per request
+    if (!config.baseURL || config.baseURL === 'http://localhost:5000/api') {
+      config.baseURL = getBaseURL();
+    }
+
     const token = localStorage.getItem('sat_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -32,7 +47,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // If token expired, clear and redirect to login
       localStorage.removeItem('sat_token');
       localStorage.removeItem('sat_user');
       localStorage.removeItem('sat_current_society');
